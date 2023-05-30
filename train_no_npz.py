@@ -18,6 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 from segment_anything import sam_model_registry
 from segment_anything.utils.transforms import ResizeLongestSide
 from utils.dataset import MedSamDataset
+from utils.focal_loss import sigmoid_focal_loss
 
 
 def dice_score(preds, targets):
@@ -126,7 +127,7 @@ class TrainMedSam:
         Returns:
             np.array: (mean validation loss, mean validation dice)
         """
-        seg_loss = monai.losses.DiceCELoss(
+        sigmoid_focal_loss = monai.losses.DiceCELoss(
             sigmoid=True, squared_pred=True, reduction="mean"
         )
 
@@ -166,7 +167,7 @@ class TrainMedSam:
             mask_predictions = (mask_predictions > 0.5).float()
 
             # get the dice loss
-            loss = seg_loss(mask_predictions, mask)
+            loss = sigmoid_focal_loss(mask_predictions, mask)
             dice = dice_score(mask_predictions, mask)
 
             val_loss.append(loss.detach().item())
@@ -191,7 +192,7 @@ class TrainMedSam:
         Returns:
             float: mean validation loss
         """
-        seg_loss = monai.losses.DiceCELoss(
+        sigmoid_focal_loss = monai.losses.DiceCELoss(
             sigmoid=True, squared_pred=True, reduction="mean"
         )
         progress_bar = tqdm(val_loader, total=len(val_loader))
@@ -227,7 +228,7 @@ class TrainMedSam:
             )
 
             # get the dice loss
-            loss = seg_loss(mask_predictions, mask)
+            loss = sigmoid_focal_loss(mask_predictions, mask)
 
             mask_predictions = (mask_predictions > 0.5).float()
             dice = dice_score(mask_predictions, mask)
@@ -253,7 +254,7 @@ class TrainMedSam:
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode="min", patience=3, factor=0.01, verbose=True
         )
-        seg_loss = monai.losses.DiceCELoss(
+        sigmoid_focal_loss = monai.losses.DiceCELoss(
             sigmoid=True, squared_pred=True, reduction="mean"
         )
         model.train()
@@ -291,7 +292,7 @@ class TrainMedSam:
                     multimask_output=False,
                 )
                 # Calculate loss
-                loss = seg_loss(mask_predictions, mask)
+                loss = sigmoid_focal_loss(mask_predictions, mask)
 
                 mask_predictions = (mask_predictions > 0.5).float()
                 dice = dice_score(mask_predictions, mask)
